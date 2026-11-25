@@ -1054,7 +1054,7 @@ document.addEventListener('click', async e => {
     case 'sbSave': {
       // URL tolérante : « https://xxxx.supabase.co/rest/v1/ », « xxxx.supabase.co » ou juste l'identifiant « xxxx »
       const raw = $<HTMLInputElement>('#sb-url').value.trim().replace(/["'\s]/g, ''); const key = $<HTMLInputElement>('#sb-key').value.trim().replace(/["'\s]/g, '');
-      const ref = (raw.match(/^(?:https?:\/\/)?([a-z0-9-]+)\.supabase\.co/i) || raw.match(/^([a-z0-9]{15,30})$/i))?.[1];
+      const ref = (raw.match(/^(?:https?:\/\/)?([a-z0-9-]+)\.supabase\.co/i) || raw.match(/\/project\/([a-z0-9]{15,30})/i) || raw.match(/^([a-z0-9]{15,30})$/i))?.[1];
       const url = ref ? `https://${ref.toLowerCase()}.supabase.co` : '';
       if (!url) { toast('L\'URL doit ressembler à https://xxxx.supabase.co (Project Settings > Data API).'); return; }
       if (key.length < 20) { toast('La clé semble incomplète : copie la clé anon public (eyJ…) ou publishable (sb_publishable_…) en entier.'); return; }
