@@ -7,7 +7,7 @@ L'application s'installe sur Mac, Windows, iPhone et Android, et fonctionne hors
 - Ajout d'une opération en quelques secondes (bouton « + », ou touche N sur ordinateur).
 - Tableau de bord du mois avec scène 3D : une pile de pièces par catégorie de dépense. Tu la fais tourner, tu touches une pile pour voir le détail.
 - Solde, revenus et dépenses en vue globale, Personnel, Activités ou par activité, et le résultat de chaque activité.
-- **Répartition du salaire** : saisis chaque mois les revenus du foyer (ton salaire, celui de ta femme, tes activités…), puis répartis-les dans des cases (loyer, nourriture, famille, enfants, tontine, épargne…) en FCFA ou en %. Reste à répartir, modèles prêts à l'emploi, « Reçu » qui enregistre le revenu, reprise automatique le mois suivant.
+- **Répartition du salaire** : saisis chaque mois les revenus du foyer (ton salaire, celui de ta femme, tes activités…), puis répartis-les dans des cases (loyer, nourriture, famille, enfants, argent de poche, épargne…) en FCFA ou en %. Reste à répartir, modèles prêts à l'emploi, « Reçu » qui enregistre le revenu, reprise automatique le mois suivant.
 - Budgets mensuels par catégorie : alerte jaune à 80 %, rouge au-delà de 100 %.
 - Opérations récurrentes (loyer, abonnements…) ajoutées toutes seules chaque mois.
 - Recherche et filtres, modification et suppression.
@@ -22,8 +22,12 @@ Ouvre le lien de l'application, puis :
 - **Windows** : dans Chrome ou Edge, icône d'installation à droite de la barre d'adresse.
 - **Mac** : dans Chrome, icône d'installation dans la barre d'adresse ; dans Safari, menu Fichier, puis « Ajouter au Dock ».
 
-## Synchroniser ordinateur et téléphone (facultatif, gratuit)
-Sans synchro, les données restent sur chaque appareil. Pour les partager :
+## Synchroniser ordinateur et téléphones (facultatif, gratuit)
+Sans synchro, les données restent sur chaque appareil. Pour retrouver les mêmes chiffres sur ton ordinateur, ton téléphone et celui de ta femme :
+
+> **Règle d'or : tous les appareils se connectent avec le MÊME e-mail.** Chaque e-mail a ses propres données : si ta femme se connecte avec son e-mail à elle, elle aura un compte vide, séparé du tien.
+
+### Étape A — Une seule fois, sur l'ordinateur (création du projet)
 
 1. Crée un compte sur **supabase.com**, puis un nouveau projet (région la plus proche, par exemple Europe).
 2. Dans le projet, ouvre **SQL Editor**, colle ce script et clique sur **Run** :
@@ -46,10 +50,29 @@ create policy "Mes données seulement" on public.mj7_items
 3. Va dans **Authentication > Email Templates > Magic Link** et remplace le contenu par :
    `Ton code MJ7 Finances : {{ .Token }}`
    (l'app te demande un code à 6 chiffres plutôt qu'un lien).
-4. Va dans **Project Settings > API** et copie l'**URL du projet** et la clé **anon public**.
+4. Va dans **Project Settings > API** (ou **API Keys**) et copie l'**URL du projet** et la clé **anon public** (parfois appelée **publishable**).
 5. Dans l'app, ouvre **Réglages > Synchronisation**, colle l'URL et la clé, puis **Enregistrer**.
-6. Entre ton e-mail, touche **Recevoir le code**, tape le code reçu, puis **Se connecter**.
-7. Fais pareil sur ton autre appareil, avec le même e-mail.
+6. Entre l'e-mail du foyer, touche **Recevoir le code**, tape le code reçu, puis **Se connecter**.
+   Tes données déjà saisies sur l'ordinateur partent alors dans ton compte.
+
+### Étape B — Sur ton téléphone
+1. Ouvre le lien de l'application et installe-la (voir plus haut).
+2. **Réglages > Synchronisation** : colle la même URL et la même clé (envoie-les-toi par WhatsApp ou par e-mail depuis l'ordinateur).
+3. Entre **le même e-mail**, touche **Recevoir le code**, tape le code, puis **Se connecter**. Tes chiffres de l'ordinateur arrivent.
+
+### Étape C — Sur le téléphone de ta femme
+1. Même chose que l'étape B : installer l'app, coller la même URL et la même clé.
+2. Entrer **le même e-mail que toi**, puis **Recevoir le code**.
+3. Le code arrive dans **ta** boîte mail : tu le lui donnes (il est valable quelques minutes), elle le tape, puis **Se connecter**.
+   Astuce : si vous préférez que chacun reçoive le code, créez une adresse e-mail commune pour le foyer et utilisez-la sur les trois appareils.
+
+C'est fait une seule fois par appareil : ensuite chacun reste connecté.
+
+### Bon à savoir
+- La synchro se fait toute seule quelques secondes après chaque saisie, et à chaque ouverture de l'app. Le badge en haut indique « Synchronisé ». Tu peux aussi forcer : **Réglages > Synchroniser maintenant**.
+- Sans internet, tout marche quand même : les saisies partent au retour du réseau.
+- Évitez de modifier **la même répartition du mois** sur deux téléphones exactement en même temps : c'est la dernière version enregistrée qui est gardée. Pour les dépenses, aucun souci : chaque opération est indépendante.
+- Le code à 4 chiffres / Face ID reste propre à chaque téléphone : ta femme peut mettre le sien.
 
 La clé « anon public » peut être vue sans risque : la règle de sécurité du script fait que chacun ne voit que ses propres données.
 
