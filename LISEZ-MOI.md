@@ -47,9 +47,10 @@ create policy "Mes données seulement" on public.mj7_items
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 ```
 
-3. Va dans **Authentication > Email Templates > Magic Link** et remplace le contenu par :
+3. Va dans **Authentication > Emails** (ou **Email Templates**) et, dans les deux modèles **Confirm signup** et **Magic Link**, remplace le contenu par :
    `Ton code MJ7 Finances : {{ .Token }}`
-   (l'app te demande un code à 6 chiffres plutôt qu'un lien).
+   (l'app te demande un code à 6 chiffres plutôt qu'un lien ; « Confirm signup » sert à la toute première connexion).
+   Utilise comme e-mail du foyer **celui de ton compte Supabase** : le service d'e-mail gratuit de Supabase n'envoie les codes qu'aux adresses de l'équipe du projet.
 4. Va dans **Project Settings > API** (ou **API Keys**) et copie l'**URL du projet** et la clé **anon public** (parfois appelée **publishable**).
 5. Dans l'app, ouvre **Réglages > Synchronisation**, colle l'URL et la clé, puis **Enregistrer**.
 6. Entre l'e-mail du foyer, touche **Recevoir le code**, tape le code reçu, puis **Se connecter**.
