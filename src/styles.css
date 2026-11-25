@@ -293,3 +293,6 @@ ol.steps b { color: var(--fg); }
 .env-in { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; align-items: center; }
 .seg.sm { padding: 2px; } .seg.sm button { padding: 7px 10px; font-size: 12px; }
 .money.pct input { padding-right: 32px; }
+.save-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; border-top: 1px solid var(--line); padding-top: 12px; }
+.save-state { font-size: 13px; font-weight: 600; color: var(--muted); }
+.save-state.saved { color: var(--good); } .save-state.dirty, .save-state.saving { color: var(--warn); }

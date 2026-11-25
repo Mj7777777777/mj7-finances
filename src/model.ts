@@ -21,9 +21,13 @@ export function allocAmount(a: Alloc | undefined, income: number): number {
 }
 
 // Cases ajoutées avec la répartition (ajoutées aussi aux installations existantes)
-export const NEW_PERSO: [string, string, string][] = [
-  ['Scolarité et enfants', '🎒', '#F2A65A'], ['Téléphone et internet', '📱', '#5AB8C9'], ['Tontine', '🤝', '#C9A35A'],
-  ['Imprévus', '🧯', '#E87A5A'], ['Soins et beauté', '💇', '#E89AC0'], ['Projets', '🎯', '#9C8CF2']];
+// [id, nom, icône, couleur, ordre] — l'id ne change jamais (synchro entre appareils)
+export const NEW_PERSO: [string, string, string, string, number][] = [
+  ['cat_perso_dep_v3_0', 'Argent de poche Souhad', '👛', '#E89AC0', 5.1], ['cat_perso_dep_v3_1', 'Argent de poche Johane', '👝', '#7C9CF2', 5.2],
+  ['cat_perso_dep_v2_0', 'Scolarité et enfants', '🎒', '#F2A65A', 20], ['cat_perso_dep_v2_1', 'Téléphone et internet', '📱', '#5AB8C9', 21],
+  ['cat_perso_dep_v2_3', 'Imprévus', '🧯', '#E87A5A', 23], ['cat_perso_dep_v2_4', 'Soins et beauté', '💇', '#E89AC0', 24], ['cat_perso_dep_v2_5', 'Projets', '🎯', '#9C8CF2', 25]];
+/** Cases retirées de l'application (supprimées une seule fois chez tout le monde). */
+const REMOVED = ['cat_perso_dep_v2_2']; // Tontine
 export const DEFAULT_SOURCES: [string, string, string][] = [
   ['Mon salaire', '💼', '#E8C27E'], ['Salaire de ma femme', '💼', '#F28CB1'], ['Activités MJ7', '🎛️', '#FF9A3D'], ['Autre revenu', '＋', '#9AA0A6']];
 
@@ -31,23 +35,23 @@ export const DEFAULT_SOURCES: [string, string, string][] = [
 export const PRESETS: { id: string; name: string; desc: string; pct: Record<string, number> }[] = [
   { id: 'foyer', name: 'Foyer équilibré', desc: 'Pour une famille : loyer, nourriture, enfants, famille, épargne.',
     pct: { 'Logement': 25, 'Nourriture': 18, 'Famille': 8, 'Scolarité et enfants': 7, 'Transport': 7, 'Factures': 5, 'Téléphone et internet': 3,
-      'Santé': 4, 'Église et dons': 5, 'Épargne': 10, 'Imprévus': 3, 'Loisirs': 5 } },
+      'Santé': 4, 'Église et dons': 5, 'Épargne': 9, 'Imprévus': 2, 'Loisirs': 3, 'Argent de poche Souhad': 2, 'Argent de poche Johane': 2 } },
   { id: '503020', name: '50 / 30 / 20', desc: '50 % besoins, 30 % envies et famille, 20 % épargne.',
-    pct: { 'Logement': 25, 'Nourriture': 15, 'Factures': 5, 'Transport': 5, 'Loisirs': 8, 'Shopping': 6, 'Famille': 8,
-      'Église et dons': 5, 'Soins et beauté': 3, 'Épargne': 15, 'Imprévus': 5 } },
+    pct: { 'Logement': 25, 'Nourriture': 15, 'Factures': 5, 'Transport': 5, 'Loisirs': 6, 'Shopping': 4, 'Famille': 8,
+      'Église et dons': 5, 'Soins et beauté': 3, 'Argent de poche Souhad': 2, 'Argent de poche Johane': 2, 'Épargne': 15, 'Imprévus': 5 } },
   { id: 'epargne', name: 'Priorité épargne', desc: '35 % mis de côté : épargne et projets.',
-    pct: { 'Épargne': 25, 'Projets': 10, 'Logement': 22, 'Nourriture': 15, 'Transport': 6, 'Factures': 5, 'Famille': 7,
-      'Église et dons': 5, 'Imprévus': 3, 'Loisirs': 2 } },
+    pct: { 'Épargne': 25, 'Projets': 10, 'Logement': 22, 'Nourriture': 15, 'Transport': 6, 'Factures': 5, 'Famille': 6,
+      'Église et dons': 5, 'Imprévus': 3, 'Argent de poche Souhad': 1.5, 'Argent de poche Johane': 1.5 } },
 ];
 
 /** Ajoute ce qui manque (nouvelles cases, sources par défaut) sans jamais recréer ce qui a été supprimé. */
 export function migrations(recs: Map<string, Rec>): Rec[] {
   const out: Rec[] = [];
   const has = (kind: string, name: string) => [...recs.values()].some(r => r.kind === kind && !r.deleted && r.data.space === 'perso' && r.data.type === 'dep' && r.data.name === name);
-  NEW_PERSO.forEach(([name, icon, color], i) => {
-    const id = `cat_perso_dep_v2_${i}`;
-    if (!recs.has(id) && !has('cat', name)) out.push({ id, kind: 'cat', data: { name, icon, color, space: 'perso', type: 'dep', order: 20 + i } as Cat, updatedAt: 1, dirty: true });
+  NEW_PERSO.forEach(([id, name, icon, color, order]) => {
+    if (!recs.has(id) && !has('cat', name)) out.push({ id, kind: 'cat', data: { name, icon, color, space: 'perso', type: 'dep', order } as Cat, updatedAt: 1, dirty: true });
   });
+  REMOVED.forEach(id => { const r = recs.get(id); if (r && !r.deleted) out.push({ ...r, deleted: true, updatedAt: Date.now(), dirty: true }); });
   const anySrc = [...recs.values()].some(r => r.kind === 'src');
   if (!anySrc) DEFAULT_SOURCES.forEach(([name, icon, color], i) =>
     out.push({ id: `src_${i}`, kind: 'src', data: { name, icon, color, amount: 0, order: i } as Source, updatedAt: 1, dirty: true }));

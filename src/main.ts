@@ -486,6 +486,7 @@ function viewPlan() {
     </div>
     <div class="slices" id="plSlices" aria-label="Répartition du revenu">${slices}</div>
     <div class="row" style="justify-content:space-between;font-size:13px"><span class="muted">Encore disponible dans les cases</span><b class="num">${fcfa(t.left)}</b></div>
+    <div class="save-bar"><span class="save-state ${stored ? 'saved' : 'new'}">${stored ? '✓ Enregistré' : from ? 'Repris du mois dernier' : 'Pas encore enregistré'}</span><button class="btn primary" data-act="planSave">💾 Enregistrer</button></div>
   </section>
   <div class="two" style="margin-top:14px">
     <section class="card grid" style="gap:12px">
@@ -505,6 +506,7 @@ function viewPlan() {
   </div>
   <div class="card-h" style="margin:26px 2px 12px"><h2>Les cases</h2><span class="muted" style="font-size:12px">en FCFA ou en % du revenu</span></div>
   <div class="acts">${envs}</div>
+  <div class="save-bar" style="margin-top:14px"><span class="save-state ${stored ? 'saved' : 'new'}">${stored ? '✓ Enregistré' : 'Pas encore enregistré'}</span><button class="btn primary" data-act="planSave">💾 Enregistrer la répartition</button></div>
   <div class="row" style="flex-wrap:nowrap;margin-top:14px;max-width:520px"><input type="text" id="newCase" placeholder="Nouvelle case (ex. Vacances, Voiture)"><button class="btn" data-act="caseAdd">Ajouter</button></div>
   ${recHtml()}`;
 }
@@ -538,6 +540,7 @@ function livePlan() {
   });
   const rest = income - total;
   const set = (id: string, txt: string, cls?: string) => { const el = document.getElementById(id); if (el) { el.textContent = txt; if (cls !== undefined) el.className = 'v ' + cls; } };
+  document.querySelectorAll<HTMLButtonElement>('[data-act=restSav]').forEach(x => x.disabled = rest <= 0);
   set('plIncome', fcfa(income)); set('plAlloc', fcfa(total)); set('plRest', fcfa(rest), rest < 0 ? 'bad' : rest === 0 && income ? 'good' : 'warn');
   const base = Math.max(income, total, 1); const box = document.getElementById('plSlices');
   if (box) box.innerHTML = amounts.filter(([, a]) => a > 0).map(([id, a]) => { const c = catOf(id); return `<i style="width:${a / base * 100}%;background:${c.color}" title="${esc(c.name)} : ${fcfa(a)}"></i>`; }).join('');
@@ -556,21 +559,58 @@ function renderKeep() {
   if (sel) { const n = document.querySelector<HTMLInputElement>(sel); if (n) { n.focus({ preventScroll: true }); if (n.tagName === 'INPUT') try { n.select(); } catch { } } }
 }
 
-async function onIncome(srcId: string, raw: string) {
-  const amount = parseMoney(raw); const { plan } = planFor();
-  await savePlan(p => { if (amount) p.inc[srcId] = amount; else delete p.inc[srcId]; });
-  const src = S.recs.get(srcId); const recs: Rec[] = [];
-  if (src && amount && (src.data as Source).amount !== amount) recs.push({ ...src, data: { ...src.data, amount } });
-  const txId = plan.got[srcId]; const tx = txId && S.recs.get(txId);
-  if (tx && !tx.deleted) { if (amount) recs.push({ ...tx, data: { ...tx.data, amount } }); else { recs.push({ ...tx, deleted: true }); await savePlan(p => { delete p.got[srcId]; }); } }
-  if (recs.length) await save(recs);
-  renderKeep();
+// ---------- Enregistrement de la répartition ----------
+// Chaque frappe est enregistrée automatiquement (après une courte pause), à la sortie d'un champ,
+// en changeant de mois ou d'onglet, quand l'app passe en arrière-plan, ou avec le bouton « Enregistrer ».
+let planDirty = false, planT = 0;
+function setSaveState(st: 'dirty' | 'saving' | 'saved') {
+  document.querySelectorAll<HTMLElement>('.save-state').forEach(el => {
+    el.className = 'save-state ' + st;
+    el.textContent = st === 'dirty' ? 'Modifications en cours…' : st === 'saving' ? 'Enregistrement…' : '✓ Enregistré';
+  });
 }
-async function onAlloc(catId: string, raw: string, mode: 'f' | 'p') {
-  const v = mode === 'p' ? parsePct(raw) : parseMoney(raw);
-  await savePlan(p => { if (v) p.alloc[catId] = { m: mode, v }; else delete p.alloc[catId]; });
-  renderKeep();
+function flushPlan(force = false): Promise<void> {
+  clearTimeout(planT);
+  if ((!planDirty && !force) || S.view !== 'plan' || S.budgetSpace !== 'perso') { planDirty = false; return Promise.resolve(); }
+  const d = collectPlan(); planDirty = false;
+  if (!d) return Promise.resolve();
+  return commitPlan(d);
 }
+/** Lit tous les champs de la répartition affichée. */
+function collectPlan(): { month: string; inc: Record<string, number>; alloc: Record<string, Alloc> } | null {
+  const incEls = [...document.querySelectorAll<HTMLInputElement>('input.inc')];
+  const allocEls = [...document.querySelectorAll<HTMLInputElement>('input.alloc')];
+  if (!incEls.length && !allocEls.length) return null;
+  const inc: Record<string, number> = {}; const alloc: Record<string, Alloc> = {};
+  incEls.forEach(i => { inc[i.dataset.src!] = parseMoney(i.value); });
+  allocEls.forEach(i => { const m: 'f' | 'p' = i.dataset.mode === 'p' ? 'p' : 'f'; alloc[i.dataset.cat!] = { m, v: m === 'p' ? parsePct(i.value) : parseMoney(i.value) }; });
+  return { month: S.month, inc, alloc };
+}
+/** Copie de secours immédiate (synchrone) : rien n'est perdu même si l'app est fermée en pleine saisie. */
+function draftPlan() { const d = collectPlan(); if (d) LS.set('planDraft', d); }
+function commitPlan(d: { month: string; inc: Record<string, number>; alloc: Record<string, Alloc> }): Promise<void> {
+  const { plan } = planFor(d.month); const p: Plan = JSON.parse(JSON.stringify(plan)); p.month = d.month;
+  const recs: Rec[] = [];
+  Object.entries(d.inc).forEach(([id, amt]) => {
+    if (!S.recs.get(id) || S.recs.get(id)!.deleted) return;
+    if (amt) p.inc[id] = amt; else delete p.inc[id];
+    const src = S.recs.get(id); if (src && amt && (src.data as Source).amount !== amt) recs.push({ ...src, data: { ...src.data, amount: amt } });
+    const txId = p.got[id]; const tx = txId ? S.recs.get(txId) : null;
+    if (tx && !tx.deleted) {
+      if (!amt) { recs.push({ ...tx, deleted: true }); delete p.got[id]; }
+      else if ((tx.data as Tx).amount !== amt) recs.push({ ...tx, data: { ...tx.data, amount: amt } });
+    }
+  });
+ Object.entries(d.alloc).forEach(([c, a]) => { if (a.v) p.alloc[c] = a; else delete p.alloc[c]; });
+  const id = 'plan_' + d.month; const old = S.recs.get(id);
+  recs.push({ id, kind: 'plan', updatedAt: old?.updatedAt || 0, data: p });
+  setSaveState('saving');
+  return save(recs).then(() => { LS.del('planDraft'); setSaveState('saved'); }, () => { planDirty = true; setSaveState('dirty'); toast('Enregistrement impossible, réessaie.'); });
+}
+const planEditing = () => planDirty || !!(document.activeElement as HTMLElement | null)?.matches?.('input.inc, input.alloc');
+window.addEventListener('pagehide', () => { flushPlan(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) flushPlan(); });
+
 async function setMode(catId: string, mode: 'f' | 'p') {
   const { plan } = planFor(); const a = plan.alloc[catId]; if ((a?.m || 'f') === mode) return;
   const income = incomeOf(plan);
@@ -870,7 +910,7 @@ async function doSync(manual = false) {
     pushed.forEach(r => S.recs.set(r.id, r));
     await DB.putMany([...incoming, ...pushed]);
     S.sync.state = 'on'; S.sync.msg = 'Dernière synchro : ' + new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-    if (incoming.length) { await runRecurring(); if (!draft && !rdraft) render(); else refreshBadge(); } else refreshBadge();
+    if (incoming.length) { await runRecurring(); if (!draft && !rdraft && !planEditing()) render(); else refreshBadge(); } else refreshBadge();
     if (manual) toast(incoming.length ? `${incoming.length} mise${incoming.length > 1 ? 's' : ''} à jour reçue${incoming.length > 1 ? 's' : ''}` : 'Tout est à jour');
   } catch (e: any) { S.sync.state = 'err'; S.sync.msg = 'Synchro impossible : ' + (e?.message || 'erreur'); refreshBadge(); if (manual) toast(S.sync.msg); }
   syncing = false;
@@ -930,7 +970,9 @@ document.addEventListener('click', async e => {
   const b = (e.target as HTMLElement).closest<HTMLElement>('[data-act]'); if (!b) return;
   const a = b.dataset.act!, v = b.dataset.v || '';
   if (b.tagName === 'INPUT') return;
+  if (planDirty) await flushPlan();
   switch (a) {
+    case 'planSave': await flushPlan(true); render(); toast('Répartition enregistrée'); break;
     case 'add': openSheet(); break;
     case 'month': S.month = S.ops.period === 'year' && S.view === 'ops' ? shiftMonth(S.month, 12 * +v) : shiftMonth(S.month, +v); render(); break;
     case 'scope': S.scope = v as any; S.actFilter = ''; render(); break;
@@ -1026,8 +1068,12 @@ document.addEventListener('change', async e => {
   if (t.id === 'restore' && t.files?.[0]) return restore(t.files[0]);
   if (t.id === 'flat') { settings.flat = t.checked; LS.set('flat', t.checked); if (t.checked && scene) { scene.dispose(); scene = null; } render(); return; }
   if (t.id?.startsWith('f-')) { (S.ops as any)[t.id.slice(2)] = t.value; render(); return; }
-  if (t.classList.contains('inc')) return onIncome(t.dataset.src!, t.value);
-  if (t.classList.contains('alloc')) return onAlloc(t.dataset.cat!, t.value, t.dataset.mode === 'p' ? 'p' : 'f');
+  if (t.classList.contains('inc') || t.classList.contains('alloc')) {
+    planDirty = true; await flushPlan();
+    const ae = document.activeElement as HTMLElement | null;
+    if (ae === t || !ae?.matches?.('input.inc, input.alloc')) renderKeep();
+    return;
+  }
   if (t.classList.contains('bud')) {
     const amount = Number(t.value.replace(/\D/g, '')); const id = `bud_${S.budgetSpace}_${t.dataset.cat}`;
     const old = S.recs.get(id); await save([{ id, kind: 'budget', updatedAt: old?.updatedAt || 0, deleted: !amount, data: { space: S.budgetSpace, catId: t.dataset.cat!, amount } }]);
@@ -1045,7 +1091,7 @@ document.addEventListener('input', e => {
   if (t.id === 'q') { S.ops.q = t.value; clearTimeout(qT); qT = window.setTimeout(() => { const pos = t.selectionStart; render(); const q = $<HTMLInputElement>('#q'); q.focus(); q.setSelectionRange(pos, pos); }, 250); }
   if (t.classList.contains('bud') || t.classList.contains('inc') || (t.classList.contains('alloc') && t.dataset.mode !== 'p')) { const raw = t.value.replace(/\D/g, '').slice(0, 12); t.value = raw ? num(Number(raw)) : ''; }
   if (t.classList.contains('alloc') && t.dataset.mode === 'p') { let x = t.value.replace('.', ',').replace(/[^\d,]/g, ''); const k = x.indexOf(','); if (k >= 0) x = x.slice(0, k + 1) + x.slice(k + 1).replace(/,/g, '').slice(0, 1); t.value = x.slice(0, 5); }
-  if (t.classList.contains('inc') || t.classList.contains('alloc')) livePlan();
+  if (t.classList.contains('inc') || t.classList.contains('alloc')) { livePlan(); planDirty = true; draftPlan(); setSaveState('dirty'); clearTimeout(planT); planT = window.setTimeout(() => { flushPlan(); }, 400); }
 });
 document.addEventListener('keydown', e => { const tg = e.target as HTMLElement; if (e.key === 'Enter' && (tg.id === 'newSrc' || tg.id === 'newCase')) { e.preventDefault(); document.querySelector<HTMLElement>(`[data-act=${tg.id === 'newSrc' ? 'srcAdd' : 'caseAdd'}]`)?.click(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.querySelector('.scrim')) { closeSheet(); rdraft = null; document.querySelector('.scrim')?.remove(); } if ((e.key === 'n' || e.key === '+') && !document.querySelector('.scrim, .lock') && !(e.target as HTMLElement).matches('input,textarea,select')) { e.preventDefault(); openSheet(); } });
@@ -1053,6 +1099,7 @@ window.addEventListener('hashchange', route);
 window.addEventListener('resize', () => { if (S.view === 'board') drawEvo(); });
 matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => { applyTheme(); if (S.view === 'board') drawEvo(); });
 function route() {
+  flushPlan();
   const h = location.hash.slice(1) as any; const v = h === 'budgets' ? 'plan' : ['board', 'ops', 'plan', 'settings'].includes(h) ? h : 'board';
   if (v !== 'board' && scene) { /* la scène reste en mémoire, elle reprendra sa place */ }
   S.view = v; render(); scrollTo({ top: 0 });
@@ -1067,6 +1114,7 @@ async function boot(fresh = false) {
   if (!recs.length) { recs = defaults(); await DB.putMany(recs); }
   S.recs = new Map(recs.map(r => [r.id, r]));
   const added = migrations(S.recs); if (added.length) { added.forEach(r => S.recs.set(r.id, r)); await DB.putMany(added); }
+  const draft0 = LS.get('planDraft'); if (draft0 && draft0.month && draft0.inc) { try { await commitPlan(draft0); } catch { } }
   if (!fresh) await lockIfNeeded();
   await runRecurring();
   if (Sync.getCfg()) { try { S.sync.email = await Sync.currentEmail(); if (S.sync.email) S.sync.state = 'on'; } catch { } }
