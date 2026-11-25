@@ -88,4 +88,6 @@ export const SQL = `create table if not exists public.mj7_items (
 );
 alter table public.mj7_items enable row level security;
 create policy "Mes données seulement" on public.mj7_items
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);`;
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on table public.mj7_items to authenticated;`;
