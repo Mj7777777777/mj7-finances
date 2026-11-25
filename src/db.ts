@@ -1,6 +1,6 @@
 // Stockage local (IndexedDB). Chaque enregistrement = { id, kind, data, updatedAt, deleted, dirty }.
-// kind : 'tx' | 'cat' | 'act' | 'budget' | 'rec' | 'meta'
-export type Kind = 'tx' | 'cat' | 'act' | 'budget' | 'rec' | 'meta';
+// kind : 'tx' | 'cat' | 'act' | 'budget' | 'rec' | 'meta' | 'src' (source de revenu) | 'plan' (répartition d'un mois)
+export type Kind = 'tx' | 'cat' | 'act' | 'budget' | 'rec' | 'meta' | 'src' | 'plan';
 export interface Rec<T = any> { id: string; kind: Kind; data: T; updatedAt: number; deleted?: boolean; dirty?: boolean }
 
 const DB_NAME = 'mj7-depenses';

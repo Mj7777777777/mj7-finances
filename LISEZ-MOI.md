@@ -7,6 +7,7 @@ L'application s'installe sur Mac, Windows, iPhone et Android, et fonctionne hors
 - Ajout d'une opération en quelques secondes (bouton « + », ou touche N sur ordinateur).
 - Tableau de bord du mois avec scène 3D : une pile de pièces par catégorie de dépense. Tu la fais tourner, tu touches une pile pour voir le détail.
 - Solde, revenus et dépenses en vue globale, Personnel, Activités ou par activité, et le résultat de chaque activité.
+- **Répartition du salaire** : saisis chaque mois les revenus du foyer (ton salaire, celui de ta femme, tes activités…), puis répartis-les dans des cases (loyer, nourriture, famille, enfants, tontine, épargne…) en FCFA ou en %. Reste à répartir, modèles prêts à l'emploi, « Reçu » qui enregistre le revenu, reprise automatique le mois suivant.
 - Budgets mensuels par catégorie : alerte jaune à 80 %, rouge au-delà de 100 %.
 - Opérations récurrentes (loyer, abonnements…) ajoutées toutes seules chaque mois.
 - Recherche et filtres, modification et suppression.
