@@ -1051,8 +1051,14 @@ document.addEventListener('click', async e => {
     case 'wipeAsk': $('#wipeZone').innerHTML = `<div class="confirm"><span>Effacer toutes les données de cet appareil ? Si la synchro est active, elles restent dans ton compte Supabase.</span><div class="row"><button class="btn danger" data-act="wipeYes">Tout effacer</button><button class="btn ghost" data-act="wipeNo">Annuler</button></div></div>`; break;
     case 'wipeNo': render(); break;
     case 'wipeYes': await DB.clearAll(); S.recs.clear(); try { localStorage.removeItem('mj7d.sync.last'); } catch { } await boot(true); toast('Données effacées'); break;
-    case 'sbSave': { const url = $<HTMLInputElement>('#sb-url').value.trim().replace(/\/$/, ''), key = $<HTMLInputElement>('#sb-key').value.trim();
-      if (!/^https:\/\/.+\.supabase\.co$/.test(url) || key.length < 20) { toast('Vérifie l\'URL (https://….supabase.co) et la clé.'); return; }
+    case 'sbSave': {
+      // URL tolérante : « https://xxxx.supabase.co/rest/v1/ », « xxxx.supabase.co » ou juste l'identifiant « xxxx »
+      const raw = $<HTMLInputElement>('#sb-url').value.trim().replace(/["'\s]/g, ''); const key = $<HTMLInputElement>('#sb-key').value.trim().replace(/["'\s]/g, '');
+      const ref = (raw.match(/^(?:https?:\/\/)?([a-z0-9-]+)\.supabase\.co/i) || raw.match(/^([a-z0-9]{15,30})$/i))?.[1];
+      const url = ref ? `https://${ref.toLowerCase()}.supabase.co` : '';
+      if (!url) { toast('L\'URL doit ressembler à https://xxxx.supabase.co (Project Settings > Data API).'); return; }
+      if (key.length < 20) { toast('La clé semble incomplète : copie la clé anon public (eyJ…) ou publishable (sb_publishable_…) en entier.'); return; }
+      if (/^sb_secret_/.test(key) || /service_role/.test(key)) { toast('Ce n\'est pas la bonne clé : prends la clé anon public ou publishable, jamais la clé secrète.'); return; }
       Sync.setCfg({ url, key }); render(); toast('Projet enregistré : connecte-toi'); break; }
     case 'sbReset': Sync.setCfg(null); S.sync = { state: 'off', email: null, msg: '' }; render(); break;
     case 'sbSend': { const m = $<HTMLInputElement>('#sb-mail').value.trim(); if (!m) { toast('Indique ton e-mail.'); return; } LS.set('mail', m);
