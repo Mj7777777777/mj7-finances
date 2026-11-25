@@ -679,11 +679,15 @@ function viewSettings() {
         <label class="f">Clé publique (anon public)<input type="text" id="sb-key" placeholder="eyJhbGciOi…" autocomplete="off"></label>
         <button class="btn primary" data-act="sbSave">Enregistrer</button>
         <details><summary class="muted" style="cursor:pointer;font-size:13px">Script SQL à coller dans Supabase</summary><pre class="sql">${esc(Sync.SQL)}</pre></details>`
-      : !S.sync.email ? `<p class="muted" style="margin:0">Connecte-toi avec ton e-mail. Utilise le même sur tous tes appareils.</p>
-        <label class="f">E-mail<input type="email" id="sb-mail" placeholder="toi@exemple.com" autocomplete="email" value="${esc(LS.get('mail', ''))}"></label>
-        <button class="btn" data-act="sbSend">Recevoir le code</button>
+      : !S.sync.email ? `<p class="muted" style="margin:0">Connecte-toi avec l'e-mail et le mot de passe du foyer. <b>Les mêmes sur tous vos appareils</b> (toi et ta femme).</p>
+        <label class="f">E-mail du foyer<input type="email" id="sb-mail" placeholder="toi@exemple.com" autocomplete="email" value="${esc(LS.get('mail', ''))}"></label>
+        <label class="f">Mot de passe (8 caractères minimum)<input type="password" id="sb-pw" placeholder="••••••••" autocomplete="current-password"></label>
+        <div class="row"><button class="btn primary" data-act="sbLogin">Se connecter</button><button class="btn" data-act="sbSignup">Créer le compte (1re fois)</button></div>
+        <p class="muted" style="margin:0;font-size:12px">« Créer le compte » une seule fois, sur le premier appareil. Ensuite, sur les autres : « Se connecter » avec le même e-mail et le même mot de passe.</p>
+        <details><summary class="muted" style="cursor:pointer;font-size:13px">Ou se connecter avec un code reçu par e-mail</summary>
+        <div class="grid" style="gap:10px;margin-top:10px"><button class="btn" data-act="sbSend">Recevoir le code</button>
         <label class="f">Code reçu par e-mail<input type="text" id="sb-code" inputmode="numeric" placeholder="123456" autocomplete="one-time-code"></label>
-        <button class="btn primary" data-act="sbVerify">Se connecter</button>
+        <button class="btn" data-act="sbVerify">Valider le code</button></div></details>
         <button class="btn ghost" data-act="sbReset">Changer de projet Supabase</button>`
       : `<p style="margin:0">Connecté : <b>${esc(S.sync.email)}</b></p><p class="muted" style="margin:0;font-size:13px">${esc(S.sync.msg || '')}</p>
         <div class="row"><button class="btn primary" data-act="sbSync">${IC.sync.replace('<svg', '<svg width="16" height="16"')}Synchroniser maintenant</button><button class="btn ghost" data-act="sbOut">Se déconnecter</button></div>`}
@@ -1055,6 +1059,20 @@ document.addEventListener('click', async e => {
       try { await Sync.sendCode(m); toast('Code envoyé : regarde tes e-mails'); } catch (er: any) { toast('Envoi impossible : ' + (er?.message || 'erreur')); } break; }
     case 'sbVerify': { const m = $<HTMLInputElement>('#sb-mail').value.trim(), c = $<HTMLInputElement>('#sb-code').value;
       try { await Sync.verifyCode(m, c); S.sync.email = await Sync.currentEmail(); S.sync.state = 'on'; await markAllDirtyOnce(); render(); doSync(true); } catch (er: any) { toast('Code refusé : ' + (er?.message || 'erreur')); } break; }
+    case 'sbLogin': case 'sbSignup': {
+      const m = $<HTMLInputElement>('#sb-mail').value.trim(), pw = $<HTMLInputElement>('#sb-pw').value;
+      if (!m || pw.length < 8) { toast('Indique l\'e-mail et un mot de passe de 8 caractères minimum.'); return; } LS.set('mail', m);
+      try {
+        if (a === 'sbSignup') { const ok = await Sync.signUpPassword(m, pw); if (!ok) { toast('Compte créé, mais Supabase demande une confirmation par e-mail : désactive « Confirm email » (voir le guide), puis touche « Se connecter ».'); return; } }
+        else await Sync.signInPassword(m, pw);
+        S.sync.email = await Sync.currentEmail(); S.sync.state = 'on'; await markAllDirtyOnce(); render(); doSync(true); toast('Connecté');
+      } catch (er: any) {
+        const msg = String(er?.message || '');
+        toast(/invalid login/i.test(msg) ? 'E-mail ou mot de passe incorrect. Première fois ? Touche « Créer le compte ».'
+          : /already registered|already exists/i.test(msg) ? 'Ce compte existe déjà : touche « Se connecter ».'
+          : /not confirmed/i.test(msg) ? 'E-mail non confirmé : désactive « Confirm email » dans Supabase (voir le guide), puis recrée le compte.'
+          : 'Connexion impossible : ' + (msg || 'erreur'));
+      } break; }
     case 'sbSync': doSync(true); break;
     case 'sbOut': await Sync.signOut(); S.sync = { state: 'off', email: null, msg: '' }; render(); break;
   }

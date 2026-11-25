@@ -25,7 +25,7 @@ Ouvre le lien de l'application, puis :
 ## Synchroniser ordinateur et téléphones (facultatif, gratuit)
 Sans synchro, les données restent sur chaque appareil. Pour retrouver les mêmes chiffres sur ton ordinateur, ton téléphone et celui de ta femme :
 
-> **Règle d'or : tous les appareils se connectent avec le MÊME e-mail.** Chaque e-mail a ses propres données : si ta femme se connecte avec son e-mail à elle, elle aura un compte vide, séparé du tien.
+> **Règle d'or : tous les appareils se connectent avec le MÊME e-mail et le MÊME mot de passe.** Chaque e-mail a ses propres données : si ta femme se connecte avec son e-mail à elle, elle aura un compte vide, séparé du tien.
 
 ### Étape A — Une seule fois, sur l'ordinateur (création du projet)
 
@@ -47,27 +47,24 @@ create policy "Mes données seulement" on public.mj7_items
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 ```
 
-3. Va dans **Authentication > Emails** (ou **Email Templates**) et, dans les deux modèles **Confirm signup** et **Magic Link**, remplace le contenu par :
-   `Ton code MJ7 Finances : {{ .Token }}`
-   (l'app te demande un code à 6 chiffres plutôt qu'un lien ; « Confirm signup » sert à la toute première connexion).
-   Utilise comme e-mail du foyer **celui de ton compte Supabase** : le service d'e-mail gratuit de Supabase n'envoie les codes qu'aux adresses de l'équipe du projet.
+3. Va dans **Authentication > Sign In / Providers**, ouvre **Email** et **désactive « Confirm email »**, puis **Save**.
+   (On se connecte avec un e-mail et un mot de passe : aucun e-mail n'est envoyé, donc pas de limite ni de code à attendre.)
 4. Va dans **Project Settings > API** (ou **API Keys**) et copie l'**URL du projet** et la clé **anon public** (parfois appelée **publishable**).
 5. Dans l'app, ouvre **Réglages > Synchronisation**, colle l'URL et la clé, puis **Enregistrer**.
-6. Entre l'e-mail du foyer, touche **Recevoir le code**, tape le code reçu, puis **Se connecter**.
+6. Entre l'**e-mail du foyer** et choisis un **mot de passe** (8 caractères minimum), puis touche **Créer le compte (1re fois)**.
    Tes données déjà saisies sur l'ordinateur partent alors dans ton compte.
 
 ### Étape B — Sur ton téléphone
 1. Ouvre le lien de l'application et installe-la (voir plus haut).
-2. **Réglages > Synchronisation** : colle la même URL et la même clé (envoie-les-toi par WhatsApp ou par e-mail depuis l'ordinateur).
-3. Entre **le même e-mail**, touche **Recevoir le code**, tape le code, puis **Se connecter**. Tes chiffres de l'ordinateur arrivent.
+2. **Réglages > Synchronisation** : colle la même URL et la même clé (envoie-les-toi par WhatsApp depuis l'ordinateur), puis **Enregistrer**.
+3. Entre **le même e-mail et le même mot de passe**, puis touche **Se connecter** (pas « Créer le compte »). Tes chiffres de l'ordinateur arrivent.
 
 ### Étape C — Sur le téléphone de ta femme
-1. Même chose que l'étape B : installer l'app, coller la même URL et la même clé.
-2. Entrer **le même e-mail que toi**, puis **Recevoir le code**.
-3. Le code arrive dans **ta** boîte mail : tu le lui donnes (il est valable quelques minutes), elle le tape, puis **Se connecter**.
-   Astuce : si vous préférez que chacun reçoive le code, créez une adresse e-mail commune pour le foyer et utilisez-la sur les trois appareils.
+Exactement comme l'étape B : même URL, même clé, **même e-mail, même mot de passe**, puis **Se connecter**.
 
 C'est fait une seule fois par appareil : ensuite chacun reste connecté.
+
+**Si « E-mail non confirmé » s'affiche** : le compte a été créé avant de désactiver « Confirm email ». Dans Supabase, va dans **Authentication > Users**, supprime l'utilisateur, puis recrée le compte depuis l'app.
 
 ### Bon à savoir
 - La synchro se fait toute seule quelques secondes après chaque saisie, et à chaque ouverture de l'app. Le badge en haut indique « Synchronisé ». Tu peux aussi forcer : **Réglages > Synchroniser maintenant**.

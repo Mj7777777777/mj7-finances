@@ -32,6 +32,19 @@ export async function verifyCode(email: string, token: string) {
   const { error } = await c.auth.verifyOtp({ email, token: token.trim(), type: 'email' });
   if (error) throw error;
 }
+/** Connexion par e-mail + mot de passe (aucun e-mail à recevoir). */
+export async function signInPassword(email: string, password: string) {
+  const c = sb(); if (!c) throw new Error('Synchronisation non configurée');
+  const { error } = await c.auth.signInWithPassword({ email, password });
+  if (error) throw error;
+}
+/** Crée le compte du foyer. Renvoie false si Supabase exige une confirmation par e-mail. */
+export async function signUpPassword(email: string, password: string): Promise<boolean> {
+  const c = sb(); if (!c) throw new Error('Synchronisation non configurée');
+  const { data, error } = await c.auth.signUp({ email, password });
+  if (error) throw error;
+  return !!data.session;
+}
 export async function signOut() { const c = sb(); if (c) await c.auth.signOut(); try { localStorage.removeItem(LAST); } catch { } }
 
 /** Tire puis pousse. Renvoie les enregistrements distants plus récents à appliquer localement et ceux poussés. */
